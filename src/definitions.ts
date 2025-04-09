@@ -1,3 +1,3 @@
 export interface PdfPrinterPlugin {
-  echo(options: { value: string }): Promise<{ value: string }>;
+  printPDF(options: { url: string }): Promise<null>;
 }

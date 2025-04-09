@@ -10,14 +10,13 @@ public class PdfPrinterPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "PdfPrinterPlugin"
     public let jsName = "PdfPrinter"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "echo", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "printPDF", returnType: nil)
     ]
     private let implementation = PdfPrinter()
 
-    @objc func echo(_ call: CAPPluginCall) {
-        let value = call.getString("value") ?? ""
-        call.resolve([
-            "value": implementation.echo(value)
-        ])
+    @objc func printPDF(_ call: CAPPluginCall) {
+        let url = call.getString("url") ?? ""
+        implementation.echo(value: url)
+        call.resolve(nil)
     }
 }
