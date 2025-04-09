@@ -1,5 +1,5 @@
 {
-  "name": "pdf-printer",
+  "name": "pdf-printer-plugin",
   "version": "1.0.0",
   "description": "print in android",
   "main": "dist/plugin.cjs.js",
