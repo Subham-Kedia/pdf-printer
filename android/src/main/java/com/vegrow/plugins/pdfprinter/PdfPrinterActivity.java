@@ -49,7 +49,7 @@ public class PdfPrinterActivity extends AppCompatActivity {
         // usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
 
         pdfUrl = getIntent().getStringExtra("pdf_url");
-        paper_type = getIntent().getStringExtra("paper_type"); // ISO_A4 or ISO_A5
+        String paper_type = getIntent().getStringExtra("paper_type"); // ISO_A4 or ISO_A5
 
         if (pdfUrl == null || !URLUtil.isValidUrl(pdfUrl)) {
             Toast.makeText(this, "Invalid PDF URL", Toast.LENGTH_SHORT).show();
@@ -130,7 +130,7 @@ public class PdfPrinterActivity extends AppCompatActivity {
             }
         };
 
-        PrintAttributes.MediaSize mediaSize = paper_type === "ISO_A5" ?
+        PrintAttributes.MediaSize mediaSize = Objects.equals(paper_type, "ISO_A5") ?
         PrintAttributes.MediaSize.ISO_A5 :
         PrintAttributes.MediaSize.ISO_A4;
 
