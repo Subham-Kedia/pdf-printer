@@ -35,6 +35,7 @@ import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import java.util.HashMap;
+import java.util.Objects;
 
 public class PdfPrinterActivity extends AppCompatActivity {
 
