@@ -23,12 +23,12 @@ npx cap sync
 ### printPDF(...)
 
 ```typescript
-printPDF(options: { url: string; }) => Promise<null>
+printPDF(options: { url: string; paper_type?: 'ISO_A4' | 'ISO_A5'; }) => Promise<null>
 ```
 
-| Param         | Type                          |
-| ------------- | ----------------------------- |
-| **`options`** | <code>{ url: string; }</code> |
+| Param         | Type                                                             |
+| ------------- | ---------------------------------------------------------------- |
+| **`options`** | <code>{ url: string; paper_type?: 'ISO_A4' \| 'ISO_A5'; }</code> |
 
 **Returns:** <code>Promise&lt;null&gt;</code>
 
