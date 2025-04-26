@@ -89,7 +89,7 @@ public class PdfPrinterActivity extends AppCompatActivity {
         return file;
     }
 
-    private void printPdfFile(File file, String paperType) {
+    private void printPdfFile(File file, String paper_type) {
         PrintManager printManager = (PrintManager) getSystemService(PRINT_SERVICE);
         PrintDocumentAdapter adapter = new PrintDocumentAdapter() {
             @Override
