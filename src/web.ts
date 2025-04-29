@@ -3,9 +3,11 @@ import { WebPlugin } from '@capacitor/core';
 import type { PdfPrinterPlugin } from './definitions';
 
 export class PdfPrinterWeb extends WebPlugin implements PdfPrinterPlugin {
-  async printPDF(options: { url: string }): Promise<null> {
-    console.log('PDF URL:', options.url);
-    console.log('Use android to print PDF');
+  async printPDF(options: { content: string; contentType: string; paperType: string }): Promise<null> {
+    console.log('This feature is specifically implemented for Android platform');
+    console.log('contentType', options.contentType);
+    console.log('content', options.content);
+    console.log('paperType', options.paperType);
     return null;
   }
 }

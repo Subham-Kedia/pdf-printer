@@ -37,9 +37,10 @@ import android.hardware.usb.UsbManager;
 import java.util.HashMap;
 import java.util.Objects;
 
+import com.itextpdf.html2pdf.HtmlConverter;
+
 public class PdfPrinterActivity extends AppCompatActivity {
 
-    private String pdfUrl;
     // private static final String ACTION_USB_PERMISSION = "com.vegrow.plugins.pdfprinter.USB_PERMISSION";
     // private UsbManager usbManager;
     // private UsbEndpoint endpoint;
@@ -49,19 +50,19 @@ public class PdfPrinterActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         // usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
 
-        pdfUrl = getIntent().getStringExtra("pdf_url");
-        String paper_type = getIntent().getStringExtra("paper_type"); // ISO_A4 or ISO_A5
-
-        if (pdfUrl == null || !URLUtil.isValidUrl(pdfUrl)) {
-            Toast.makeText(this, "Invalid PDF URL", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
+        String content = getIntent().getStringExtra("content");
+        String contentType = getIntent().getStringExtra("contentType");
+        String paperType = getIntent().getStringExtra("paperType"); // ISO_A4 or ISO_A5
 
         new Thread(() -> {
             try {
-                File pdfFile = downloadPdf(pdfUrl);
-                runOnUiThread(() -> printPdfFile(pdfFile, paper_type));
+                if (contentType.equals("html")) {
+                    File pdfFile = convertHtmlToPdf(content);
+                    runOnUiThread(() -> printPdfFile(pdfFile, paperType));
+                } else if (contentType.equals("pdf")) {
+                    File pdfFile = downloadPdf(content);
+                    runOnUiThread(() -> printPdfFile(pdfFile, paper_type));
+                }
             } catch (Exception e) {
                 e.printStackTrace();
                 runOnUiThread(() -> {
@@ -88,6 +89,14 @@ public class PdfPrinterActivity extends AppCompatActivity {
         }
 
         return file;
+    }
+
+    private fun convertHtmlToPdf(html: String): File {
+        val outputFile = File.createTempFile("print_", ".pdf", context.cacheDir)
+        FileOutputStream(outputFile).use { outputStream ->
+            HtmlConverter.convertToPdf(html, outputStream)
+        }
+        return outputFile
     }
 
     private void printPdfFile(File file, String paper_type) {
@@ -139,7 +148,7 @@ public class PdfPrinterActivity extends AppCompatActivity {
                 .setMediaSize(mediaSize)
                 .setColorMode(PrintAttributes.COLOR_MODE_MONOCHROME)
                 .setMinMargins(PrintAttributes.Margins.NO_MARGINS);
-        printManager.print("PDF Document", adapter, null);
+        printManager.print("PDF Document", adapter, builder.build());
     }
 
     // private void printPdfFile(File file) {

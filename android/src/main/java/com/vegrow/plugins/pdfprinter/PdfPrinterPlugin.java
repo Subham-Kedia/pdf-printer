@@ -14,17 +14,19 @@ public class PdfPrinterPlugin extends Plugin {
 
     @PluginMethod
     public void printPDF(PluginCall call) {
-        String url = call.getString("url");
-        String paper_type = call.getString("paper_type", "ISO_A4"); // Default to A4 if not specified
+        String contentType = call.getString("contentType");
+        String content = call.getString("content");
+        String paperType = call.getString("paperType");
 
-        if (url == null || !URLUtil.isValidUrl(url)) {
-            call.reject("Invalid or missing PDF URL");
+        if (contentType == null || content == null) {
+            call.reject("Must provide contentType and content");
             return;
         }
-
+        
         Intent intent = new Intent(getContext(), PdfPrinterActivity.class);
-        intent.putExtra("pdf_url", url);
-        intent.putExtra("paper_type", paper_type);
+        intent.putExtra("content", content);
+        intent.putExtra("contentType", contentType);
+        intent.putExtra("paperType", paperType);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         getContext().startActivity(intent);
 
