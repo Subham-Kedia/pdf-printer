@@ -10,6 +10,7 @@ import android.print.PrintDocumentAdapter;
 import android.print.PrintDocumentInfo;
 import android.print.PrintManager;
 import android.util.Log;
+import android.view.View;
 import android.webkit.URLUtil;
 import android.widget.Toast;
 
@@ -36,8 +37,10 @@ import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
 import java.util.HashMap;
 import java.util.Objects;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
-import com.itextpdf.html2pdf.HtmlConverter;
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 
 public class PdfPrinterActivity extends AppCompatActivity {
 
@@ -57,11 +60,10 @@ public class PdfPrinterActivity extends AppCompatActivity {
         new Thread(() -> {
             try {
                 if (contentType.equals("html")) {
-                    File pdfFile = convertHtmlToPdf(content);
-                    runOnUiThread(() -> printPdfFile(pdfFile, paperType));
+                    convertHtmlToPdfAndPrint(this, content, paperType);
                 } else if (contentType.equals("pdf")) {
                     File pdfFile = downloadPdf(content);
-                    runOnUiThread(() -> printPdfFile(pdfFile, paper_type));
+                    printPdfFile(pdfFile, paperType);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -91,13 +93,35 @@ public class PdfPrinterActivity extends AppCompatActivity {
         return file;
     }
 
-    private fun convertHtmlToPdf(html: String): File {
-        val outputFile = File.createTempFile("print_", ".pdf", context.cacheDir)
-        FileOutputStream(outputFile).use { outputStream ->
-            HtmlConverter.convertToPdf(html, outputStream)
-        }
-        return outputFile
+    public void convertHtmlToPdfAndPrint(Context context, String html, String paperType) {
+        runOnUiThread(() -> {
+            WebView webView = new WebView(context);
+            webView.getSettings().setJavaScriptEnabled(true);
+            webView.setVisibility(View.INVISIBLE);
+
+            webView.setWebViewClient(new WebViewClient() {
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    PrintDocumentAdapter adapter = webView.createPrintDocumentAdapter("document");
+
+                    PrintAttributes.MediaSize mediaSize = Objects.equals(paperType, "ISO_A5") ?
+                            PrintAttributes.MediaSize.ISO_A5 : PrintAttributes.MediaSize.ISO_A4;
+
+                    PrintAttributes attributes = new PrintAttributes.Builder()
+                            .setMediaSize(mediaSize.asLandscape())
+                            .setColorMode(PrintAttributes.COLOR_MODE_MONOCHROME)
+                            .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+                            .build();
+
+                    PrintManager printManager = (PrintManager) context.getSystemService(Context.PRINT_SERVICE);
+                    printManager.print("Generated PDF", adapter, attributes);
+                }
+            });
+
+            webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+        });
     }
+
 
     private void printPdfFile(File file, String paper_type) {
         PrintManager printManager = (PrintManager) getSystemService(PRINT_SERVICE);
