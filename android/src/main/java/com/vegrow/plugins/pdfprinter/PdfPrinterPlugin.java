@@ -17,6 +17,7 @@ public class PdfPrinterPlugin extends Plugin {
         String contentType = call.getString("contentType");
         String content = call.getString("content");
         String paperType = call.getString("paperType");
+        String layout = call.getString("layout")
 
         if (contentType == null || content == null) {
             call.reject("Must provide contentType and content");
@@ -27,6 +28,7 @@ public class PdfPrinterPlugin extends Plugin {
         intent.putExtra("content", content);
         intent.putExtra("contentType", contentType);
         intent.putExtra("paperType", paperType);
+        intent.putExtra("layout", layout)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         getContext().startActivity(intent);
 

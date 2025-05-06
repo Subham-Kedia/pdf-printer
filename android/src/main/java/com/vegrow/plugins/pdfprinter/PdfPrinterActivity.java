@@ -56,11 +56,12 @@ public class PdfPrinterActivity extends AppCompatActivity {
         String content = getIntent().getStringExtra("content");
         String contentType = getIntent().getStringExtra("contentType");
         String paperType = getIntent().getStringExtra("paperType"); // ISO_A4 or ISO_A5
+        String layout = getIntent().getStringExtra("layout")
 
         new Thread(() -> {
             try {
                 if (contentType.equals("html")) {
-                    convertHtmlToPdfAndPrint(this, content, paperType);
+                    convertHtmlToPdfAndPrint(this, content, paperType, layout);
                 } else if (contentType.equals("pdf")) {
                     File pdfFile = downloadPdf(content);
                     printPdfFile(pdfFile, paperType);
@@ -93,7 +94,7 @@ public class PdfPrinterActivity extends AppCompatActivity {
         return file;
     }
 
-    public void convertHtmlToPdfAndPrint(Context context, String html, String paperType) {
+    public void convertHtmlToPdfAndPrint(Context context, String html, String paperType, String layout) {
         runOnUiThread(() -> {
             WebView webView = new WebView(context);
             webView.getSettings().setJavaScriptEnabled(true);
@@ -108,7 +109,7 @@ public class PdfPrinterActivity extends AppCompatActivity {
                             PrintAttributes.MediaSize.ISO_A5 : PrintAttributes.MediaSize.ISO_A4;
 
                     PrintAttributes attributes = new PrintAttributes.Builder()
-                            .setMediaSize(mediaSize.asLandscape())
+                            .setMediaSize(Objects.equals(layout, 'landscape') ? mediaSize.asLandscape() : mediaSize.asPortrait())
                             .setColorMode(PrintAttributes.COLOR_MODE_MONOCHROME)
                             .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
                             .build();
