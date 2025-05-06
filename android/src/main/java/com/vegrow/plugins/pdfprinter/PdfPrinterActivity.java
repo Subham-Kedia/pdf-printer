@@ -56,7 +56,7 @@ public class PdfPrinterActivity extends AppCompatActivity {
         String content = getIntent().getStringExtra("content");
         String contentType = getIntent().getStringExtra("contentType");
         String paperType = getIntent().getStringExtra("paperType"); // ISO_A4 or ISO_A5
-        String layout = getIntent().getStringExtra("layout")
+        String layout = getIntent().getStringExtra("layout");
 
         new Thread(() -> {
             try {
@@ -109,7 +109,7 @@ public class PdfPrinterActivity extends AppCompatActivity {
                             PrintAttributes.MediaSize.ISO_A5 : PrintAttributes.MediaSize.ISO_A4;
 
                     PrintAttributes attributes = new PrintAttributes.Builder()
-                            .setMediaSize(Objects.equals(layout, 'landscape') ? mediaSize.asLandscape() : mediaSize.asPortrait())
+                            .setMediaSize(Objects.equals(layout, "landscape") ? mediaSize.asLandscape() : mediaSize.asPortrait())
                             .setColorMode(PrintAttributes.COLOR_MODE_MONOCHROME)
                             .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
                             .build();
