@@ -14,6 +14,7 @@ npx cap sync
 <docgen-index>
 
 * [`printPDF(...)`](#printpdf)
+* [`printPDFviaIPP(...)`](#printpdfviaipp)
 
 </docgen-index>
 
@@ -29,6 +30,21 @@ printPDF(options: { contentType: 'html' | 'pdf'; content: string; paperType: 'IS
 | Param         | Type                                                                                                                                |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | **`options`** | <code>{ contentType: 'html' \| 'pdf'; content: string; paperType: 'ISO_A4' \| 'ISO_A5'; layout: 'portrait' \| 'landscape'; }</code> |
+
+**Returns:** <code>Promise&lt;null&gt;</code>
+
+--------------------
+
+
+### printPDFviaIPP(...)
+
+```typescript
+printPDFviaIPP(options: { printerUrl: string; content: string; paperType: 'ISO_A4' | 'ISO_A5'; layout: 'portrait' | 'landscape'; }) => Promise<null>
+```
+
+| Param         | Type                                                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **`options`** | <code>{ printerUrl: string; content: string; paperType: 'ISO_A4' \| 'ISO_A5'; layout: 'portrait' \| 'landscape'; }</code> |
 
 **Returns:** <code>Promise&lt;null&gt;</code>
 
