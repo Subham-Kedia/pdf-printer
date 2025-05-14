@@ -13,17 +13,24 @@ import java.io.ByteArrayOutputStream;
 
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URL;
-import java.net.HttpURLConnection;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
 
 import com.hp.jipp.encoding.IppPacket;
 import com.hp.jipp.model.Types;
-import com.hp.jipp.model.IppRequest;
-import com.hp.jipp.trans.IppClient;
-import com.hp.jipp.trans.IppResponse;
+import com.hp.jipp.encoding.AttributeGroup;
+import com.hp.jipp.encoding.IppInputStream;
+import com.hp.jipp.encoding.IppOutputStream;
+import com.hp.jipp.encoding.Tag;
+import com.hp.jipp.trans.IppClientTransport;
+import com.hp.jipp.trans.IppPacketData;
+import java.io.DataOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.BufferedInputStream;
 
 @CapacitorPlugin(name = "PdfPrinter")
 public class PdfPrinterPlugin extends Plugin {
@@ -96,33 +103,81 @@ public class PdfPrinterPlugin extends Plugin {
             byte[] pdfBytes = baos.toByteArray();
             InputStream pdfStream = new ByteArrayInputStream(pdfBytes);
 
-            // Step 2: Prepare IPP client
+            // Step 2: Prepare IPP packet for print job
             URI printerUri = new URI(printerUrl);
-            IppClient client = new IppClient.Builder()
-                    .uri(printerUri)
-                    .build();
+            
+            // Create the IPP packet directly with operation attributes
+            // Operation code 0x0002 is the standard IPP code for Print-Job operation
+            IppPacket.Builder builder = new IppPacket.Builder(0x0002, 1); // Print job operation with ID=1
+            
+            // Add operation attributes
+            // Use standard IPP attribute names and values
+            // These are the IPP attribute names according to RFC 8011
+            builder.putOperationAttributes(
+                    Types.requestingUserName.of("AndroidKiosk"),  // "requesting-user-name"
+                    Types.documentFormat.of("application/pdf"),   // "document-format"
+                    Types.media.of(paperType),                    // "media"
+                    Types.orientationRequested.of(layout.equalsIgnoreCase("landscape") ? 4 : 3), // "orientation-requested"
+                    Types.copies.of(1)                           // "copies"
+            );
 
-            // Step 3: Create IPP print job
-            IppRequest request = IppRequest.printJob(printerUri.toString(), pdfStream)
-                    .attribute(Types.requestingUserName.of("AndroidKiosk"))
-                    .attribute(Types.documentFormat.of("application/pdf"))
-                    .attribute(Types.media.of(paperType)) // e.g. "iso_a4_210x297mm"
-                    .attribute(Types.orientationRequested.of(
-                            layout.equalsIgnoreCase("landscape")
-                                    ? Types.orientationLandscape
-                                    : Types.orientationPortrait
-                    ))
-                    .attribute(Types.copies.of(1))
-                    .build();
+            // Build the IPP packet for print-job operation
+            IppPacket printJobPacket = builder.build();
+            
+            // Step 3: Send IPP request directly using HTTP
+            // Convert IPP URL to HTTP URL if needed
+            String uriString = printerUri.toString();
+            if (uriString.startsWith("ipp://")) {
+                uriString = "http://" + uriString.substring(6); // Convert ipp:// to http://
+            } else if (uriString.startsWith("ipps://")) {
+                uriString = "https://" + uriString.substring(7); // Convert ipps:// to https://
+            }
+            
+            // Create HTTP connection
+            URL httpUrl = new URL(uriString);
+            HttpURLConnection http = (HttpURLConnection) httpUrl.openConnection();
+            http.setDoOutput(true);
+            http.setDoInput(true);
+            http.setRequestMethod("POST");
+            http.setRequestProperty("Content-Type", "application/ipp");
+            
+            // Write IPP packet to output stream
+            try (DataOutputStream out = new DataOutputStream(http.getOutputStream())) {
+                // First write the IPP packet
+                ByteArrayOutputStream packetBytes = new ByteArrayOutputStream();
+                new IppOutputStream(packetBytes).write(printJobPacket);
+                out.write(packetBytes.toByteArray());
+                
+                // Then write the PDF data
+                byte[] buffer1 = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = pdfStream.read(buffer1)) != -1) {
+                    out.write(buffer1, 0, bytesRead);
+                }
+            }
+            
+            // Read response
+            int statusCode = http.getResponseCode();
+            IppPacket responsePacket = null;
+            if (statusCode < 400) {
+                // Read response packet
+                try (InputStream in = new BufferedInputStream(http.getInputStream())) {
+                    responsePacket = new IppInputStream(in).readPacket();
+                }
+            }
 
-            // Step 4: Send request
-            IppResponse response = client.send(request);
-
+            IppPacket finalResponsePacket = responsePacket;
             getActivity().runOnUiThread(() -> {
-                if (response.getStatus().isSuccessful()) {
+                if (statusCode < 300 && finalResponsePacket != null && finalResponsePacket.getCode() < 0x0200) {
+                    // Both HTTP status code and IPP status code indicate success
                     call.resolve();
-                } else {
-                    call.reject("IPP printing failed: " + response.getStatus().toString());
+                } else { 
+                    // Either HTTP or IPP operation failed
+                    String errorMsg = "Printing failed: HTTP status " + statusCode;
+                    if (finalResponsePacket != null) {
+                        errorMsg += ", IPP status code: " + finalResponsePacket.getCode();
+                    }
+                    call.reject(errorMsg);
                 }
             });
         } catch (Exception e) {
