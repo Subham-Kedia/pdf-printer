@@ -8,23 +8,22 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.net.HttpURLConnection;
 import java.io.ByteArrayInputStream;
-import javax.print.Doc;
-import javax.print.DocFlavor;
-import javax.print.DocPrintJob;
-import javax.print.PrintService;
-import javax.print.PrintServiceLookup;
-import javax.print.SimpleDoc;
-import javax.print.attribute.HashPrintRequestAttributeSet;
-import javax.print.attribute.PrintRequestAttributeSet;
-import javax.print.attribute.standard.Copies;
-import javax.print.attribute.standard.MediaSizeName;
-import javax.print.attribute.standard.OrientationRequested;
+import java.io.InputStream;
+import java.io.IOException;
+
+import com.hp.jipp.encoding.IppPacket;
+import com.hp.jipp.model.Types;
+import com.hp.jipp.model.IppRequest;
+import com.hp.jipp.trans.IppClient;
+import com.hp.jipp.trans.IppResponse;
 
 @CapacitorPlugin(name = "PdfPrinter")
 public class PdfPrinterPlugin extends Plugin {
@@ -56,8 +55,18 @@ public class PdfPrinterPlugin extends Plugin {
     public void printPDFviaIPP(PluginCall call) {
         String printerUrl = call.getString("printerUrl");
         String pdfUrl = call.getString("content");
-        String paperType = call.getString("paperType", "ISO_A4");
+        String paperInput = call.getString("paperType", "iso_a4_210x297mm");
         String layout = call.getString("layout", "portrait");
+
+        String paperType;
+        if ("ISO_A4".equalsIgnoreCase(paperInput)) {
+            paperType = "iso_a4_210x297mm";
+        } else if ("A5".equalsIgnoreCase(paperInput)) {
+            paperType = "iso_a5_148x210mm";
+        } else {
+            // Default to A4 if unknown
+            paperType = "iso_a4_210x297mm";
+        }
 
         if (printerUrl == null || pdfUrl == null) {
             call.reject("Must provide printer URL and PDF URL");
@@ -69,59 +78,58 @@ public class PdfPrinterPlugin extends Plugin {
             return;
         }
 
+        new Thread(() -> {
         try {
-            // Download PDF content
+            // Step 1: Download the PDF
             URL url = new URL(pdfUrl);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.connect();
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            InputStream inputStream = new BufferedInputStream(conn.getInputStream());
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-            // Create print request attributes
-            PrintRequestAttributeSet attributes = new HashPrintRequestAttributeSet();
-            
-            // Set paper size
-            if (paperType.equals("ISO_A5")) {
-                attributes.add(MediaSizeName.ISO_A5);
-            } else {
-                attributes.add(MediaSizeName.ISO_A4);
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = inputStream.read(buffer)) != -1) {
+                baos.write(buffer, 0, len);
             }
+            inputStream.close();
+            byte[] pdfBytes = baos.toByteArray();
+            InputStream pdfStream = new ByteArrayInputStream(pdfBytes);
 
-            // Set orientation
-            if (layout.equals("landscape")) {
-                attributes.add(OrientationRequested.LANDSCAPE);
-            } else {
-                attributes.add(OrientationRequested.PORTRAIT);
-            }
+            // Step 2: Prepare IPP client
+            URI printerUri = new URI(printerUrl);
+            IppClient client = new IppClient.Builder()
+                    .uri(printerUri)
+                    .build();
 
-            // Set number of copies
-            attributes.add(new Copies(1));
+            // Step 3: Create IPP print job
+            IppRequest request = IppRequest.printJob(printerUri.toString(), pdfStream)
+                    .attribute(Types.requestingUserName.of("AndroidKiosk"))
+                    .attribute(Types.documentFormat.of("application/pdf"))
+                    .attribute(Types.media.of(paperType)) // e.g. "iso_a4_210x297mm"
+                    .attribute(Types.orientationRequested.of(
+                            layout.equalsIgnoreCase("landscape")
+                                    ? Types.orientationLandscape
+                                    : Types.orientationPortrait
+                    ))
+                    .attribute(Types.copies.of(1))
+                    .build();
 
-            // Find printer service
-            PrintService[] services = PrintServiceLookup.lookupPrintServices(null, null);
-            PrintService selectedPrinter = null;
+            // Step 4: Send request
+            IppResponse response = client.send(request);
 
-            for (PrintService service : services) {
-                if (service.getName().contains(new URI(printerUrl).getHost())) {
-                    selectedPrinter = service;
-                    break;
+            getActivity().runOnUiThread(() -> {
+                if (response.getStatus().isSuccessful()) {
+                    call.resolve();
+                } else {
+                    call.reject("IPP printing failed: " + response.getStatus().toString());
                 }
-            }
-
-            if (selectedPrinter == null) {
-                call.reject("Printer not found: " + printerUrl);
-                return;
-            }
-
-            // Create print job with downloaded PDF
-            DocPrintJob job = selectedPrinter.createPrintJob();
-            try (InputStream pdfStream = connection.getInputStream()) {
-                Doc doc = new SimpleDoc(pdfStream, DocFlavor.INPUT_STREAM.PDF, null);
-                job.print(doc, attributes);
-            }
-
-            call.resolve();
-
+            });
         } catch (Exception e) {
-            call.reject("Printing failed: " + e.getMessage());
-        }
+                getActivity().runOnUiThread(() -> {
+                    call.reject("Printing failed: " + e.getMessage(), e);
+                });
+            }
+        }).start();
     }
 }
