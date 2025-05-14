@@ -52,7 +52,7 @@ repositories {
 
 
 dependencies {
-    implementation 'com.hp.jipp:jipp-core:0.7.16'
+    implementation 'com.hp.jipp:jipp-core:1.0.0'
     implementation 'com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.10'
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation project(':capacitor-android')
