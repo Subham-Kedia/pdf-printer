@@ -64,7 +64,7 @@ public class PdfPrinterActivity extends AppCompatActivity {
                     convertHtmlToPdfAndPrint(this, content, paperType, layout);
                 } else if (contentType.equals("pdf")) {
                     File pdfFile = downloadPdf(content);
-                    printPdfFile(pdfFile, paperType);
+                    printPdfFile(pdfFile, paperType, layout);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -124,7 +124,7 @@ public class PdfPrinterActivity extends AppCompatActivity {
     }
 
 
-    private void printPdfFile(File file, String paper_type) {
+    private void printPdfFile(File file, String paper_type, String layout) {
         PrintManager printManager = (PrintManager) getSystemService(PRINT_SERVICE);
         PrintDocumentAdapter adapter = new PrintDocumentAdapter() {
             @Override
@@ -170,7 +170,7 @@ public class PdfPrinterActivity extends AppCompatActivity {
         PrintAttributes.MediaSize.ISO_A4;
 
         PrintAttributes.Builder builder = new PrintAttributes.Builder()
-                .setMediaSize(mediaSize)
+                .setMediaSize(Objects.equals(layout, "landscape") ? mediaSize.asLandscape() : mediaSize.asPortrait())
                 .setColorMode(PrintAttributes.COLOR_MODE_MONOCHROME)
                 .setMinMargins(PrintAttributes.Margins.NO_MARGINS);
         printManager.print("PDF Document", adapter, builder.build());
