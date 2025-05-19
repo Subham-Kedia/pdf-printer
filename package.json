@@ -1,6 +1,6 @@
 {
   "name": "pdf-printer-plugin",
-  "version": "1.17.0",
+  "version": "1.18.0",
   "description": "print in android",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
