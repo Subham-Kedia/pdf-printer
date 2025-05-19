@@ -1,7 +1,19 @@
 package com.vegrow.plugins.pdfprinter;
 
+import android.content.Context;
 import android.content.Intent;
+import android.os.Bundle;
+import android.os.CancellationSignal;
+import android.os.ParcelFileDescriptor;
+import android.print.PageRange;
+import android.print.PrintAttributes;
+import android.print.PrintDocumentAdapter;
+import android.print.PrintDocumentInfo;
+import android.print.PrintManager;
+import android.util.Log;
 import android.webkit.URLUtil;
+
+import androidx.annotation.NonNull;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -11,7 +23,11 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -31,6 +47,7 @@ import com.hp.jipp.trans.IppPacketData;
 import java.io.DataOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.BufferedInputStream;
+import java.util.Objects;
 
 @CapacitorPlugin(name = "PdfPrinter")
 public class PdfPrinterPlugin extends Plugin {
@@ -46,16 +63,101 @@ public class PdfPrinterPlugin extends Plugin {
             call.reject("Must provide contentType and content");
             return;
         }
-        
-        Intent intent = new Intent(getContext(), PdfPrinterActivity.class);
-        intent.putExtra("content", content);
-        intent.putExtra("contentType", contentType);
-        intent.putExtra("paperType", paperType);
-        intent.putExtra("layout", layout);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        getContext().startActivity(intent);
 
-        call.resolve();
+        try {
+            File pdfFile = downloadPdf(content);
+            printPdfFile(pdfFile, paperType, layout);
+        } catch (Exception e) {
+            call.reject("Invalid content");
+            return;
+        }
+
+
+        
+//        Intent intent = new Intent(getContext(), PdfPrinterActivity.class);
+//        intent.putExtra("content", content);
+//        intent.putExtra("contentType", contentType);
+//        intent.putExtra("paperType", paperType);
+//        intent.putExtra("layout", layout);
+//        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+//        getContext().startActivity(intent);
+//
+//        call.resolve();
+    }
+
+    public File downloadPdf(String urlStr) throws Exception {
+        Log.d("Print", "Download started");
+        URL url = new URL(urlStr);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.connect();
+
+        File file = File.createTempFile("print-", ".pdf", getContext().getCacheDir());
+        try (InputStream in = connection.getInputStream();
+             OutputStream out = new FileOutputStream(file)) {
+            byte[] buffer = new byte[4096];
+            int len;
+            while ((len = in.read(buffer)) > 0) {
+                out.write(buffer, 0, len);
+            }
+        }
+
+        Log.d("Print", "Download completed");
+
+        return file;
+    }
+
+    public void printPdfFile(File file, String paper_type, String layout) {
+        Log.d("Print", "Print Method started");
+        PrintManager printManager = (PrintManager) getContext().getSystemService(Context.PRINT_SERVICE);
+
+        PrintDocumentAdapter adapter = new PrintDocumentAdapter() {
+            @Override
+            public void onLayout(PrintAttributes oldAttributes, PrintAttributes newAttributes,
+                                 CancellationSignal cancellationSignal,
+                                 LayoutResultCallback callback, Bundle extras) {
+                if (cancellationSignal.isCanceled()) {
+                    callback.onLayoutCancelled();
+                    return;
+                }
+
+                PrintDocumentInfo info = new PrintDocumentInfo.Builder("document.pdf")
+                        .setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
+                        .setPageCount(PrintDocumentInfo.PAGE_COUNT_UNKNOWN)
+                        .build();
+
+                callback.onLayoutFinished(info, true);
+            }
+
+            @Override
+            public void onWrite(@NonNull PageRange[] pages, @NonNull ParcelFileDescriptor destination,
+                                @NonNull CancellationSignal cancellationSignal,
+                                @NonNull WriteResultCallback callback) {
+                try (InputStream in = new FileInputStream(file);
+                     OutputStream out = new FileOutputStream(destination.getFileDescriptor())) {
+                    byte[] buffer = new byte[4096];
+                    int size;
+                    while ((size = in.read(buffer)) > 0) {
+                        out.write(buffer, 0, size);
+                    }
+                    callback.onWriteFinished(new PageRange[]{PageRange.ALL_PAGES});
+//                    finish();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    callback.onWriteFailed(e.getMessage());
+                }
+            }
+        };
+
+        PrintAttributes.MediaSize mediaSize = Objects.equals(paper_type, "ISO_A5") ?
+                PrintAttributes.MediaSize.ISO_A5 :
+                PrintAttributes.MediaSize.ISO_A4;
+
+        PrintAttributes.Builder builder = new PrintAttributes.Builder()
+                .setMediaSize(Objects.equals(layout, "landscape") ? mediaSize.asLandscape() : mediaSize.asPortrait())
+                .setColorMode(PrintAttributes.COLOR_MODE_MONOCHROME)
+                .setMinMargins(PrintAttributes.Margins.NO_MARGINS);
+
+        printManager.print("PDF Document", adapter, builder.build());
     }
 
     @PluginMethod
